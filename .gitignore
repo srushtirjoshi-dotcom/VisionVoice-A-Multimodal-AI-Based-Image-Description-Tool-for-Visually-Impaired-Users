@@ -43,3 +43,6 @@ app-example
 /android
 
 server/.env
+.env
+.env.*
+!.env.example

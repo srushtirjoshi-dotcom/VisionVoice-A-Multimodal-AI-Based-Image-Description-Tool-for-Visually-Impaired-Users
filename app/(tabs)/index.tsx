@@ -1,9 +1,10 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Speech from 'expo-speech';
-import { useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { VolumeManager } from 'react-native-volume-manager';
+import { BackHandler, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-const BACKEND_URL = 'https://neo-shapes-results-gilbert.trycloudflare.com';
+const BACKEND_URL = 'https://los-apollo-constitute-donation.trycloudflare.com';
 
 export default function HomeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -18,7 +19,69 @@ const [error, setError] = useState<string | null>(null);
 const [descriptionReady, setDescriptionReady] = useState(false);
 
   const cameraRef = useRef<CameraView | null>(null);
+  const showCameraRef = useRef(false);
+useEffect(() => {
+  if (Platform.OS !== 'android') {
+    return;
+  }
 
+  const backAction = () => {
+    const isCleanHome =
+      !showCameraRef.current &&
+      !photoUri &&
+      !description &&
+      !loading &&
+      !error &&
+      !descriptionReady;
+
+    if (!isCleanHome) {
+      console.log('Back button pressed - returning to Home');
+
+      Speech.stop();
+
+      showCameraRef.current = false;
+      setShowCamera(false);
+      setPhotoUri(null);
+      setPhotoBase64(null);
+      setDescription(null);
+      setLoading(false);
+      setError(null);
+      setDescriptionReady(false);
+
+      return true;
+    }
+
+    return false;
+  };
+
+  const backHandler = BackHandler.addEventListener(
+    'hardwareBackPress',
+    backAction
+  );
+
+  return () => {
+    backHandler.remove();
+  };
+}, [photoUri, description, loading, error, descriptionReady]);
+useEffect(() => {
+  console.log('Volume listener registered');
+
+  const listener = VolumeManager.addVolumeListener((result) => {
+    console.log('Volume button detected:', result.volume, result.type);
+
+   if (showCameraRef.current) {
+  console.log('Camera is open - taking photo');
+  takePhoto();
+} else {
+  console.log('Camera is NOT open');
+}
+  });
+
+  return () => {
+    console.log('Volume listener removed');
+    listener.remove();
+  };
+}, []);
   const openCamera = async () => {
     if (!permission?.granted) {
       const result = await requestPermission();
@@ -28,7 +91,8 @@ const [descriptionReady, setDescriptionReady] = useState(false);
       }
     }
 
-    setShowCamera(true);
+    showCameraRef.current = true;
+setShowCamera(true);
   };
 
   const takePhoto = async () => {
@@ -43,7 +107,8 @@ const [descriptionReady, setDescriptionReady] = useState(false);
     if (photo?.uri) {
   setPhotoUri(photo.uri);
   setPhotoBase64(photo.base64 ?? null);
-  setShowCamera(false);
+  showCameraRef.current = false;
+setShowCamera(false);
 setDescription(null);
 setError(null);
 setDescriptionReady(false);
@@ -100,7 +165,7 @@ Speech.speak(data.description);
   console.error('Description error:', err);
 
   const errorMessage =
-    'Could not describe the image. Please check that the backend is running.';
+  'Google Gemini is currently experiencing a high demand. Please try again in a moment.';
 
   setError(errorMessage);
   Speech.stop();
